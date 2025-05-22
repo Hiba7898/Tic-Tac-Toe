@@ -1,5 +1,4 @@
-
-        class ModernTicTacToe {
+       class ModernTicTacToe {
             constructor() {
                 this.board = Array(9).fill('');
                 this.currentPlayer = 'X';

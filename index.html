@@ -7,6 +7,11 @@
     <link rel="stylesheet" href="style.css"></link>
 </head>
 <body>
+     <!-- Logo HK en haut centré -->
+    <div class="logo">
+        <img src="pic/logo_HK_final.png" alt="Logo HK" />
+    </div>
+
     <button class="theme-toggle" id="theme-toggle">🌙 Mode Sombre</button>
     
     <div class="container">
@@ -47,20 +52,21 @@
             <button class="btn reset-btn" id="reset-btn">🔄 Nouvelle Partie</button>
             <button class="btn mode-toggle" id="mode-toggle">🤖 Jouer contre l'IA</button>
         </div>
-        
-        <div class="leaderboard">
-            <h2>🏆 Tableau des Scores</h2>
-            <ul class="leaderboard-list" id="leaderboard-list">
-                <li class="leaderboard-item">
-                    <span class="player-name" id="player-x-name">Joueur X</span>
-                    <span class="player-score" id="player-x-leaderboard">0</span>
-                </li>
-                <li class="leaderboard-item">
-                    <span class="player-name" id="player-o-name">Joueur O</span>
-                    <span class="player-score" id="player-o-leaderboard">0</span>
-                </li>
-            </ul>
-        </div>
+    </div>
+
+    <!-- Tableau des Scores en position fixe -->
+    <div class="leaderboard">
+        <h2>🏆 Tableau des Scores</h2>
+        <ul class="leaderboard-list" id="leaderboard-list">
+            <li class="leaderboard-item">
+                <span class="player-name" id="player-x-name">Joueur X</span>
+                <span class="player-score" id="player-x-leaderboard">0</span>
+            </li>
+            <li class="leaderboard-item">
+                <span class="player-name" id="player-o-name">Joueur O</span>
+                <span class="player-score" id="player-o-leaderboard">0</span>
+            </li>
+        </ul>
     </div>
 
     <!-- Modal pour les noms des joueurs -->
@@ -83,7 +89,8 @@
     <div class="winning-message" id="winning-message">
         <div class="winning-text" id="winning-text"></div>
     </div>
-    
+
+
  <script src="script.js"></script>
 </body>
 </html>
