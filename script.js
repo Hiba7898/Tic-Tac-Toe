@@ -1,437 +1,387 @@
-document.addEventListener('DOMContentLoaded', () => {
-    // Éléments du DOM
-    const board = document.getElementById('board');
-    const cells = document.querySelectorAll('.cell');
-    const status = document.getElementById('status');
-    const resetBtn = document.getElementById('reset-btn');
-    const xScoreElement = document.getElementById('x-score');
-    const oScoreElement = document.getElementById('o-score');
-    const drawScoreElement = document.getElementById('draw-score');
-    const themeToggle = document.getElementById('theme-toggle');
-    const modeToggle = document.getElementById('mode-toggle');
-    const timerElement = document.getElementById('timer');
-    const playerModal = document.getElementById('player-modal');
-    const playerXInput = document.getElementById('player-x');
-    const playerOInput = document.getElementById('player-o');
-    const startGameButton = document.getElementById('start-game');
-    const leaderboardList = document.getElementById('leaderboard-list');
-    
-    // Sons
-    const soundClick = document.getElementById('sound-click');
-    const soundWin = document.getElementById('sound-win');
-    const soundDraw = document.getElementById('sound-draw');
-    
-    // Variables du jeu
-    let currentPlayer = 'X';
-    let gameState = ['', '', '', '', '', '', '', '', ''];
-    let gameActive = false;
-    let vsComputer = false;
-    let scores = {
-        X: 0,
-        O: 0,
-        draw: 0
-    };
-    
-    // Variables pour le timer
-    let timerInterval;
-    let timeLeft = 15;
-    
-    // Noms des joueurs et classement
-    let playerNames = {
-        X: 'Joueur X',
-        O: 'Joueur O'
-    };
-    
-    let leaderboard = [];
-    
-    // Combinaisons gagnantes
-    const winningConditions = [
-        [0, 1, 2], // Première ligne
-        [3, 4, 5], // Deuxième ligne
-        [6, 7, 8], // Troisième ligne
-        [0, 3, 6], // Première colonne
-        [1, 4, 7], // Deuxième colonne
-        [2, 5, 8], // Troisième colonne
-        [0, 4, 8], // Diagonale gauche-droite
-        [2, 4, 6]  // Diagonale droite-gauche
-    ];
-    
-    // Fonction pour vérifier si un joueur a gagné
-    function checkWin() {
-        let roundWon = false;
-        let winningCombination = [];
-        
-        for (let i = 0; i < winningConditions.length; i++) {
-            const [a, b, c] = winningConditions[i];
-            
-            if (gameState[a] && gameState[a] === gameState[b] && gameState[a] === gameState[c]) {
-                roundWon = true;
-                winningCombination = [a, b, c];
-                break;
-            }
-        }
-        
-        if (roundWon) {
-            // Arrêter le timer
-            clearInterval(timerInterval);
-            
-            // Marquer les cellules gagnantes
-            winningCombination.forEach(index => {
-                cells[index].classList.add('winner');
-            });
-            
-            updateStatus(`${playerNames[currentPlayer]} a gagné!`);
-            
-            // Mettre à jour le score
-            scores[currentPlayer]++;
-            updateScoreDisplay();
-            
-            // Jouer le son de victoire
-            soundWin.play();
-            
-            // Mettre à jour le classement
-            updateLeaderboardWin(currentPlayer);
-            
-            gameActive = false;
-            return true;
-        }
-        
-        // Vérifier s'il y a match nul
-        if (!gameState.includes('')) {
-            // Arrêter le timer
-            clearInterval(timerInterval);
-            
-            updateStatus('Match nul!');
-            
-            // Mettre à jour le score de match nul
-            scores.draw++;
-            updateScoreDisplay();
-            
-            // Jouer le son de match nul
-            soundDraw.play();
-            
-            gameActive = false;
-            return true;
-        }
-        
-        return false;
-    }
-    
-    // Fonction pour mettre à jour l'affichage du statut
-    function updateStatus(message) {
-        status.textContent = message;
-    }
-    
-    // Fonction pour mettre à jour l'affichage des scores
-    function updateScoreDisplay() {
-        xScoreElement.textContent = scores.X;
-        oScoreElement.textContent = scores.O;
-        drawScoreElement.textContent = scores.draw;
-    }
-    
-    // Fonction pour effectuer un coup
-    function makeMove(index) {
-        gameState[index] = currentPlayer;
-        
-        // Mettre à jour la cellule visuellement (sans texte, en utilisant les classes CSS)
-        cells[index].classList.add(currentPlayer.toLowerCase());
-        
-        // Jouer le son de clic
-        soundClick.play();
-        
-        if (!checkWin()) {
-            // Changer de joueur
-            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-            updateStatus(`C'est au tour de ${playerNames[currentPlayer]}`);
-            
-            // Redémarrer le timer
-            startTimer();
-            
-            // Si c'est maintenant le tour de l'ordinateur, faire son coup
-            if (vsComputer && currentPlayer === 'O') {
-                computerMove();
-            }
-        }
-    }
-    
-    // Fonction pour gérer le clic sur une cellule
-    function handleCellClick(clickedCellEvent) {
-        const clickedCell = clickedCellEvent.target;
-        const clickedCellIndex = parseInt(clickedCell.getAttribute('data-index'));
-        
-        // Vérifier si la cellule est déjà occupée ou si le jeu est terminé
-        if (gameState[clickedCellIndex] !== '' || !gameActive) {
-            return;
-        }
-        
-        // Effectuer le coup
-        makeMove(clickedCellIndex);
-    }
-    
-    // Fonction pour le coup de l'ordinateur
-    function computerMove() {
-        if (!gameActive || !vsComputer || currentPlayer === 'X') return;
-        
-        setTimeout(() => {
-            // IA simple: d'abord vérifier si l'ordinateur peut gagner
-            const winMove = findWinningMove('O');
-            if (winMove !== -1) {
-                makeMove(winMove);
-                return;
-            }
-            
-            // Ensuite, bloquer une victoire potentielle du joueur
-            const blockMove = findWinningMove('X');
-            if (blockMove !== -1) {
-                makeMove(blockMove);
-                return;
-            }
-            
-            // Prendre le centre s'il est disponible
-            if (gameState[4] === '') {
-                makeMove(4);
-                return;
-            }
-            
-            // Sinon, faire un mouvement aléatoire
-            let availableMoves = [];
-            gameState.forEach((cell, index) => {
-                if (cell === '') availableMoves.push(index);
-            });
-            
-            if (availableMoves.length > 0) {
-                const randomIndex = Math.floor(Math.random() * availableMoves.length);
-                makeMove(availableMoves[randomIndex]);
-            }
-        }, 700); // Délai pour simuler la "réflexion"
-    }
-    
-    // Fonction pour trouver un coup gagnant
-    function findWinningMove(player) {
-        for (let i = 0; i < gameState.length; i++) {
-            if (gameState[i] === '') {
-                // Tester ce mouvement
-                gameState[i] = player;
+
+        class ModernTicTacToe {
+            constructor() {
+                this.board = Array(9).fill('');
+                this.currentPlayer = 'X';
+                this.gameActive = true;
+                this.vsComputer = false;
+                this.scores = { X: 0, O: 0, draw: 0 };
+                this.playerNames = { X: 'Joueur X', O: 'Joueur O' };
+                this.timeLeft = 15;
+                this.timer = null;
+                this.winningCombinations = [
+                    [0, 1, 2], [3, 4, 5], [6, 7, 8],
+                    [0, 3, 6], [1, 4, 7], [2, 5, 8],
+                    [0, 4, 8], [2, 4, 6]
+                ];
                 
-                // Vérifier si c'est un mouvement gagnant
-                let isWinning = false;
-                for (let j = 0; j < winningConditions.length; j++) {
-                    const [a, b, c] = winningConditions[j];
-                    if (gameState[a] === player && gameState[b] === player && gameState[c] === player) {
-                        isWinning = true;
-                        break;
+                this.initializeElements();
+                this.attachEventListeners();
+                this.showPlayerModal();
+                this.startTimer();
+            }
+
+            initializeElements() {
+                this.boardElement = document.getElementById('board');
+                this.statusElement = document.getElementById('status');
+                this.timerElement = document.getElementById('timer');
+                this.resetBtn = document.getElementById('reset-btn');
+                this.modeToggle = document.getElementById('mode-toggle');
+                this.themeToggle = document.getElementById('theme-toggle');
+                this.playerModal = document.getElementById('player-modal');
+                this.startGameBtn = document.getElementById('start-game');
+                this.winningMessage = document.getElementById('winning-message');
+                this.winningText = document.getElementById('winning-text');
+                
+                // Score elements
+                this.xScoreElement = document.getElementById('x-score');
+                this.oScoreElement = document.getElementById('o-score');
+                this.drawScoreElement = document.getElementById('draw-score');
+                
+                // Leaderboard elements
+                this.playerXName = document.getElementById('player-x-name');
+                this.playerOName = document.getElementById('player-o-name');
+                this.playerXLeaderboard = document.getElementById('player-x-leaderboard');
+                this.playerOLeaderboard = document.getElementById('player-o-leaderboard');
+            }
+
+            attachEventListeners() {
+                this.boardElement.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('cell')) {
+                        this.handleCellClick(e.target);
+                    }
+                });
+
+                this.resetBtn.addEventListener('click', () => this.resetGame());
+                this.modeToggle.addEventListener('click', () => this.toggleMode());
+                this.themeToggle.addEventListener('click', () => this.toggleTheme());
+                this.startGameBtn.addEventListener('click', () => this.startGame());
+                
+                // Fermer le message de victoire en cliquant dessus
+                this.winningMessage.addEventListener('click', () => {
+                    this.winningMessage.style.display = 'none';
+                });
+            }
+
+            showPlayerModal() {
+                this.playerModal.style.display = 'flex';
+            }
+
+            startGame() {
+                const playerXInput = document.getElementById('player-x').value.trim();
+                const playerOInput = document.getElementById('player-o').value.trim();
+                
+                this.playerNames.X = playerXInput || 'Joueur X';
+                this.playerNames.O = playerOInput || 'Joueur O';
+                
+                this.updateLeaderboardNames();
+                this.playerModal.style.display = 'none';
+                this.updateStatus();
+            }
+
+            updateLeaderboardNames() {
+                this.playerXName.textContent = this.playerNames.X;
+                this.playerOName.textContent = this.playerNames.O;
+            }
+
+            handleCellClick(cell) {
+                const index = parseInt(cell.dataset.index);
+                
+                if (this.board[index] !== '' || !this.gameActive) return;
+                
+                this.makeMove(index, this.currentPlayer);
+                
+                if (this.vsComputer && this.gameActive && this.currentPlayer === 'O') {
+                    setTimeout(() => this.makeComputerMove(), 500);
+                }
+            }
+
+            makeMove(index, player) {
+                this.board[index] = player;
+                const cell = document.querySelector(`[data-index="${index}"]`);
+                cell.classList.add(player.toLowerCase());
+                
+                this.resetTimer();
+                
+                if (this.checkWinner()) {
+                    this.handleGameEnd(player);
+                } else if (this.board.every(cell => cell !== '')) {
+                    this.handleGameEnd('draw');
+                } else {
+                    this.currentPlayer = this.currentPlayer === 'X' ? 'O' : 'X';
+                    this.updateStatus();
+                    this.startTimer();
+                }
+            }
+
+            makeComputerMove() {
+                if (!this.gameActive) return;
+                
+                // IA Simple: essaie de gagner, puis de bloquer, sinon joue aléatoirement
+                let bestMove = this.findWinningMove('O') || 
+                              this.findWinningMove('X') || 
+                              this.getRandomMove();
+                
+                if (bestMove !== null) {
+                    this.makeMove(bestMove, 'O');
+                }
+            }
+
+            findWinningMove(player) {
+                for (let combo of this.winningCombinations) {
+                    const [a, b, c] = combo;
+                    const cells = [this.board[a], this.board[b], this.board[c]];
+                    
+                    if (cells.filter(cell => cell === player).length === 2 && 
+                        cells.includes('')) {
+                        return combo[cells.indexOf('')];
                     }
                 }
-                
-                // Annuler le mouvement de test
-                gameState[i] = '';
-                
-                if (isWinning) return i;
+                return null;
             }
-        }
-        
-        return -1;
-    }
-    
-    // Fonction pour réinitialiser le jeu
-    function resetGame() {
-        currentPlayer = 'X';
-        gameState = ['', '', '', '', '', '', '', '', ''];
-        gameActive = true;
-        
-        // Réinitialiser l'interface utilisateur
-        if (vsComputer) {
-            updateStatus(`Vous jouez contre l'ordinateur (${playerNames.X} commence)`);
-        } else {
-            updateStatus(`C'est au tour de ${playerNames.X}`);
-        }
-        
-        cells.forEach(cell => {
-            cell.textContent = '';
-            cell.classList.remove('x', 'o', 'winner');
-        });
-        
-        // Redémarrer le timer
-        startTimer();
-    }
-    
-    // Fonction pour démarrer/redémarrer le timer
-    function startTimer() {
-        // Arrêter le timer existant s'il y en a un
-        clearInterval(timerInterval);
-        
-        // Réinitialiser le temps
-        timeLeft = 15;
-        timerElement.textContent = `Temps: ${timeLeft}s`;
-        timerElement.classList.remove('warning');
-        
-        // Démarrer un nouveau timer
-        timerInterval = setInterval(() => {
-            timeLeft--;
-            timerElement.textContent = `Temps: ${timeLeft}s`;
-            
-            // Avertissement lorsqu'il reste peu de temps
-            if (timeLeft <= 5) {
-                timerElement.classList.add('warning');
-            }
-            
-            // Si le temps est écoulé, passer au joueur suivant
-            if (timeLeft <= 0) {
-                clearInterval(timerInterval);
-                currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-                updateStatus(`Temps écoulé! C'est au tour de ${playerNames[currentPlayer]}`);
-                startTimer();
+
+            getRandomMove() {
+                const emptyCells = this.board
+                    .map((cell, index) => cell === '' ? index : null)
+                    .filter(index => index !== null);
                 
-                // Si c'est le tour de l'ordinateur, faire son coup
-                if (vsComputer && currentPlayer === 'O') {
-                    computerMove();
+                return emptyCells.length > 0 ? 
+                    emptyCells[Math.floor(Math.random() * emptyCells.length)] : null;
+            }
+
+            checkWinner() {
+                for (let combo of this.winningCombinations) {
+                    const [a, b, c] = combo;
+                    if (this.board[a] && 
+                        this.board[a] === this.board[b] && 
+                        this.board[a] === this.board[c]) {
+                        this.highlightWinningCells(combo);
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            highlightWinningCells(combo) {
+                combo.forEach(index => {
+                    document.querySelector(`[data-index="${index}"]`).classList.add('winner');
+                });
+                document.body.classList.add('game-over');
+            }
+
+            handleGameEnd(result) {
+                this.gameActive = false;
+                this.resetTimer();
+                
+                if (result === 'draw') {
+                    this.scores.draw++;
+                    this.updateStatus('🤝 Match nul!');
+                    this.showWinningMessage('🤝 Match Nul!');
+                } else {
+                    this.scores[result]++;
+                    const playerName = this.playerNames[result];
+                    this.updateStatus(`🎉 ${playerName} a gagné!`);
+                    this.showWinningMessage(`🎉 ${playerName} a gagné!`);
+                }
+                
+                this.updateScoreDisplay();
+                setTimeout(() => this.resetGame(), 3000);
+            }
+
+            showWinningMessage(message) {
+                this.winningText.textContent = message;
+                this.winningMessage.style.display = 'flex';
+                setTimeout(() => {
+                    this.winningMessage.style.display = 'none';
+                }, 2500);
+            }
+
+            updateStatus(message = null) {
+                if (message) {
+                    this.statusElement.textContent = message;
+                } else {
+                    const playerName = this.playerNames[this.currentPlayer];
+                    this.statusElement.textContent = 
+                        `🎯 C'est au tour de ${playerName}`;
                 }
             }
-        }, 1000);
-    }
-    
-    // Fonction pour mettre à jour le classement
-    function updateLeaderboardWin(winner) {
-        // Trouver le joueur dans le classement ou l'ajouter
-        let playerFound = false;
-        
-        for (let i = 0; i < leaderboard.length; i++) {
-            if (leaderboard[i].name === playerNames[winner]) {
-                leaderboard[i].score++;
-                playerFound = true;
-                break;
+
+            startTimer() {
+                this.timeLeft = 15;
+                this.updateTimer();
+                
+                this.timer = setInterval(() => {
+                    this.timeLeft--;
+                    this.updateTimer();
+                    
+                    if (this.timeLeft <= 0) {
+                        this.handleTimeout();
+                    }
+                }, 1000);
+            }
+
+            updateTimer() {
+                this.timerElement.textContent = `⏱️ Temps: ${this.timeLeft}s`;
+                
+                if (this.timeLeft <= 5) {
+                    this.timerElement.classList.add('warning');
+                } else {
+                    this.timerElement.classList.remove('warning');
+                }
+            }
+
+            resetTimer() {
+                if (this.timer) {
+                    clearInterval(this.timer);
+                    this.timer = null;
+                }
+                this.timerElement.classList.remove('warning');
+            }
+
+            handleTimeout() {
+                this.resetTimer();
+                
+                if (this.vsComputer && this.currentPlayer === 'O') {
+                    this.makeComputerMove();
+                } else {
+                    // Passe automatiquement au joueur suivant
+                    this.currentPlayer = this.currentPlayer === 'X' ? 'O' : 'X';
+                    this.updateStatus();
+                    this.startTimer();
+                }
+            }
+
+            updateScoreDisplay() {
+                this.xScoreElement.textContent = this.scores.X;
+                this.oScoreElement.textContent = this.scores.O;
+                this.drawScoreElement.textContent = this.scores.draw;
+                this.playerXLeaderboard.textContent = this.scores.X;
+                this.playerOLeaderboard.textContent = this.scores.O;
+            }
+
+            resetGame() {
+                this.board = Array(9).fill('');
+                this.currentPlayer = 'X';
+                this.gameActive = true;
+                this.resetTimer();
+                
+                // Réinitialise l'affichage du plateau
+                document.querySelectorAll('.cell').forEach(cell => {
+                    cell.classList.remove('x', 'o', 'winner');
+                });
+                
+                document.body.classList.remove('game-over');
+                this.updateStatus();
+                this.startTimer();
+            }
+
+            toggleMode() {
+                this.vsComputer = !this.vsComputer;
+                this.modeToggle.textContent = this.vsComputer ? 
+                    '👥 Jouer à deux' : '🤖 Jouer contre l\'IA';
+                
+                this.playerNames.O = this.vsComputer ? 'Ordinateur' : 'Joueur O';
+                this.updateLeaderboardNames();
+                this.resetGame();
+            }
+
+            toggleTheme() {
+                document.body.classList.toggle('dark-mode');
+                const isDark = document.body.classList.contains('dark-mode');
+                this.themeToggle.textContent = isDark ? '☀️ Mode Clair' : '🌙 Mode Sombre';
             }
         }
-        
-        if (!playerFound) {
-            leaderboard.push({
-                name: playerNames[winner],
-                score: 1
-            });
-        }
-        
-        // Trier le classement
-        leaderboard.sort((a, b) => b.score - a.score);
-        
-        // Mettre à jour l'affichage
-        updateLeaderboard();
-    }
-    
-    // Fonction pour mettre à jour l'affichage du classement
-    function updateLeaderboard() {
-        // Vider la liste
-        leaderboardList.innerHTML = '';
-        
-        // Ajouter les joueurs actuels s'ils ne sont pas dans le classement
-        let xFound = leaderboard.some(player => player.name === playerNames.X);
-        let oFound = leaderboard.some(player => player.name === playerNames.O);
-        
-        if (!xFound) {
-            leaderboard.push({
-                name: playerNames.X,
-                score: 0
-            });
-        }
-        
-        if (!oFound) {
-            leaderboard.push({
-                name: playerNames.O,
-                score: 0
-            });
-        }
-        
-        // Trier le classement
-        leaderboard.sort((a, b) => b.score - a.score);
-        
-        // Afficher le classement (limité aux 5 premiers)
-        for (let i = 0; i < Math.min(5, leaderboard.length); i++) {
-            const player = leaderboard[i];
+
+        // Initialisation du jeu
+        document.addEventListener('DOMContentLoaded', () => {
+            new ModernTicTacToe();
+        });
+
+        // Effets visuels supplémentaires
+        document.addEventListener('mousemove', (e) => {
+            const container = document.querySelector('.container');
+            const rect = container.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
             
-            const item = document.createElement('li');
-            item.className = 'leaderboard-item';
+            const xPercent = (x / rect.width) * 100;
+            const yPercent = (y / rect.height) * 100;
             
-            const nameSpan = document.createElement('span');
-            nameSpan.className = 'player-name';
-            nameSpan.textContent = player.name;
+            container.style.background = `
+                radial-gradient(circle at ${xPercent}% ${yPercent}%, 
+                rgba(255, 255, 255, 0.15) 0%, 
+                rgba(255, 255, 255, 0.05) 50%, 
+                rgba(255, 255, 255, 0.1) 100%)
+            `;
+        });
+
+        // Ajouter des particules flottantes
+        function createFloatingParticles() {
+            const particlesContainer = document.createElement('div');
+            particlesContainer.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                pointer-events: none;
+                z-index: -1;
+                overflow: hidden;
+            `;
             
-            const scoreSpan = document.createElement('span');
-            scoreSpan.className = 'player-score';
-            scoreSpan.textContent = player.score;
+            for (let i = 0; i < 20; i++) {
+                const particle = document.createElement('div');
+                particle.style.cssText = `
+                    position: absolute;
+                    width: ${Math.random() * 6 + 2}px;
+                    height: ${Math.random() * 6 + 2}px;
+                    background: rgba(255, 255, 255, ${Math.random() * 0.3 + 0.1});
+                    border-radius: 50%;
+                    left: ${Math.random() * 100}%;
+                    top: ${Math.random() * 100}%;
+                    animation: float ${Math.random() * 10 + 10}s infinite linear;
+                `;
+                particlesContainer.appendChild(particle);
+            }
             
-            item.appendChild(nameSpan);
-            item.appendChild(scoreSpan);
-            
-            leaderboardList.appendChild(item);
+            document.body.appendChild(particlesContainer);
         }
-    }
-    
-    // Gérer le clic sur le bouton "Commencer le Jeu"
-    startGameButton.addEventListener('click', () => {
-        // Récupérer les noms des joueurs
-        playerNames.X = playerXInput.value.trim() || 'Joueur X';
-        playerNames.O = playerOInput.value.trim() || 'Joueur O';
-        
-        // Mettre à jour le tableau des scores
-        updateLeaderboard();
-        
-        // Fermer la boîte de dialogue
-        playerModal.style.display = 'none';
-        
-        // Activer le jeu
-        gameActive = true;
-        
-        // Démarrer le timer
-        startTimer();
-        
-        // Mettre à jour l'affichage du statut
-        if (vsComputer) {
-            updateStatus(`Vous jouez contre l'ordinateur (${playerNames.X} commence)`);
-        } else {
-            updateStatus(`C'est au tour de ${playerNames.X}`);
+
+        // Ajouter l'animation des particules au CSS
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes floatParticles {
+                0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+                10% { opacity: 1; }
+                90% { opacity: 1; }
+                100% { transform: translateY(-100vh) rotate(360deg); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Créer les particules au chargement
+        document.addEventListener('DOMContentLoaded', createFloatingParticles);
+
+        // Effet de son (simulation avec vibration sur mobile)
+        function playSound(type) {
+            if ('vibrate' in navigator) {
+                switch(type) {
+                    case 'click':
+                        navigator.vibrate(50);
+                        break;
+                    case 'win':
+                        navigator.vibrate([100, 50, 100, 50, 200]);
+                        break;
+                    case 'draw':
+                        navigator.vibrate([50, 25, 50]);
+                        break;
+                }
+            }
         }
-    });
-    
-    // Mode sombre
-    themeToggle.addEventListener('click', () => {
-        document.body.classList.toggle('dark-mode');
-        
-        if (document.body.classList.contains('dark-mode')) {
-            themeToggle.textContent = 'Mode Clair';
-        } else {
-            themeToggle.textContent = 'Mode Sombre';
-        }
-    });
-    
-    // Mode contre l'ordinateur
-    modeToggle.addEventListener('click', () => {
-        vsComputer = !vsComputer;
-        resetGame();
-        
-        if (vsComputer) {
-            modeToggle.textContent = 'Jouer contre un ami';
-            playerNames.O = 'Ordinateur';
-            updateStatus(`Vous jouez contre l'ordinateur (${playerNames.X} commence)`);
-        } else {
-            modeToggle.textContent = 'Jouer contre l\'ordinateur';
-            playerNames.O = 'Joueur O';
-            updateStatus(`C'est au tour de ${playerNames.X}`);
-        }
-        
-        // Mettre à jour le tableau des scores
-        updateLeaderboard();
-    });
-    
-    // Ajouter des écouteurs d'événements aux cellules
-    cells.forEach(cell => {
-        cell.addEventListener('click', handleCellClick);
-    });
-    
-    // Ajouter un écouteur d'événement au bouton de réinitialisation
-    resetBtn.addEventListener('click', resetGame);
-    
-    // Afficher la boîte de dialogue des noms de joueurs au chargement
-    playerModal.style.display = 'flex';
-    
-    // Initialiser le jeu
-    updateLeaderboard();
-});
+
+        // Ajouter des sons aux interactions
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('cell')) {
+                playSound('click');
+            }
+        });
