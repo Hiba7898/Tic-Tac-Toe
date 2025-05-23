@@ -1,8 +1,8 @@
-       class ModernTicTacToe {
+        class ModernTicTacToe {
             constructor() {
                 this.board = Array(9).fill('');
                 this.currentPlayer = 'X';
-                this.gameActive = true;
+                this.gameActive = false; // Changé en false au début
                 this.vsComputer = false;
                 this.scores = { X: 0, O: 0, draw: 0 };
                 this.playerNames = { X: 'Joueur X', O: 'Joueur O' };
@@ -17,7 +17,7 @@
                 this.initializeElements();
                 this.attachEventListeners();
                 this.showPlayerModal();
-                this.startTimer();
+                // Supprimé this.startTimer() d'ici
             }
 
             initializeElements() {
@@ -75,7 +75,11 @@
                 
                 this.updateLeaderboardNames();
                 this.playerModal.style.display = 'none';
+                
+                // Activer le jeu et démarrer le timer maintenant
+                this.gameActive = true;
                 this.updateStatus();
+                this.startTimer(); // Timer démarre maintenant
             }
 
             updateLeaderboardNames() {
@@ -271,7 +275,7 @@
                 
                 document.body.classList.remove('game-over');
                 this.updateStatus();
-                this.startTimer();
+                this.startTimer(); // Redémarrer le timer pour une nouvelle partie
             }
 
             toggleMode() {
