@@ -34,7 +34,7 @@
 
         /* Variables de couleurs pour les thèmes */
         :root {
-            --bg-gradient: linear-gradient(135deg, #f49cf7 0%, #530970 100%);
+            --bg-gradient: linear-gradient(135deg, #2d053d 0%,#4c1363 50%,  #f49cf7 100%);
             --primary-color: #4facfe;
             --secondary-color: #00f2fe;
             --accent-color: #43e97b;
